@@ -1,40 +1,44 @@
-// ... existing imports ...
-import { VehicleSystem } from './js/VehicleSystem.js';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { WeaponSystem } from './js/WeaponSystem.js';
 import { UI } from './js/UI.js';
 
-const vehicles = new VehicleSystem(scene);
-const ui = new UI((index) => {
-    // Logic to switch weapon based on wheel selection
-    console.log("Selected Weapon Index:", index);
-});
+// ... Setup Scene, Camera, Renderer, Controls ...
+
+const weapon = new WeaponSystem(camera);
+const ui = new UI((name) => weapon.loadWeapon(`assets/weapons/animated_${name}.glb`));
+const loader = new GLTFLoader();
 
 window.addEventListener('keydown', (e) => {
-    if (e.key === '-') {
-        // Spawn vehicle 5 units in front of player
+    const key = e.key.toLowerCase();
+
+    if (key === 'q') ui.toggle();
+    if (key === 'i') weapon.play('INSPECTION');
+    if (key === 'r') weapon.play('RELOAD');
+    
+    // Vehicle Spawner
+    if (key === '-') {
         const spawnPos = camera.position.clone().add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(5));
-        vehicles.spawn('animated_car.glb', spawnPos);
-        console.log("Vehicle Spawned");
+        loader.load('assets/vehicles/animated_car.glb', (gltf) => {
+            const car = gltf.scene;
+            car.position.copy(spawnPos);
+            scene.add(car);
+            console.log("Vehicle Spawned at:", spawnPos);
+        });
     }
 
-    if (e.key === '=') {
-        // Toggle Dev Console (browser default is F12, but we can log stats here)
-        console.log("--- DEV CONSOLE ---");
-        console.log("Player Pos:", camera.position);
-        console.log("Active Objects:", scene.children.length);
-    }
-
-    if (e.key.toLowerCase() === 'i') {
-        weapon.inspect();
-    }
-
-    if (e.key.toLowerCase() === 'q') {
-        ui.toggleWheel(true);
+    // Dev Console Info
+    if (key === '=') {
+        console.group("Dev Console");
+        console.log("Player Position:", camera.position);
+        console.log("Scene Objects:", scene.children.length);
+        console.groupEnd();
     }
 });
 
-// Update main loop to handle Fire 1 and Fire 2
+// Fire Logic
 window.addEventListener('mousedown', (e) => {
-    if (!controls.instance.isLocked) return;
-    if (e.button === 0) weapon.play('fire');   // Left Click
-    if (e.button === 2) weapon.play('fire 2'); // Right Click
+    if (!controls.isLocked) return;
+    if (e.button === 0) weapon.play('FIRE');
+    if (e.button === 2) weapon.play('FIRE 2');
 });
