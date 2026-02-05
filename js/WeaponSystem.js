@@ -11,14 +11,12 @@ export class WeaponSystem {
     }
 
     async loadWeapon(weaponPath) {
-        // Clean up old weapon
         if (this.currentModel) this.camera.remove(this.currentModel);
 
         return new Promise((resolve) => {
             this.loader.load(weaponPath, (gltf) => {
                 this.currentModel = gltf.scene;
-                
-                // Fine-tune these values based on your model size
+                // Standard FPS positioning
                 this.currentModel.position.set(0.3, -0.4, -0.5);
                 this.currentModel.scale.set(0.1, 0.1, 0.1);
                 this.camera.add(this.currentModel);
@@ -31,7 +29,7 @@ export class WeaponSystem {
                     this.actions[name] = this.mixer.clipAction(clip);
                 });
 
-                this.play('UP'); // Play draw animation
+                this.play('UP'); 
                 resolve();
             });
         });
@@ -41,15 +39,14 @@ export class WeaponSystem {
         const action = this.actions[name.toUpperCase()];
         if (!action) return;
 
-        // Fade out all other actions for a smooth transition
-        Object.values(this.actions).forEach(a => a.fadeOut(0.2));
-
-        action.reset().fadeIn(0.2);
+        // Smoothly blend between animations
+        Object.values(this.actions).forEach(a => a.fadeOut(0.1));
+        
+        action.reset().fadeIn(0.1);
         action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce);
         action.clampWhenFinished = true;
         action.play();
 
-        // Return to IDLE automatically if it's a one-shot animation
         if (!loop && name !== 'DOWN') {
             const onFinished = () => {
                 this.mixer.removeEventListener('finished', onFinished);
