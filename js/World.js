@@ -1,35 +1,37 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export class World {
     constructor(scene) {
         this.scene = scene;
-        this.createEnvironment();
+        this.loader = new GLTFLoader();
+        this.init();
     }
 
-    createEnvironment() {
-        // Lighting
-        const ambient = new THREE.HemisphereLight(0xffffff, 0x444444, 2.5);
-        this.scene.add(ambient);
+    init() {
+        // High-end Environment Lighting
+        const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+        this.scene.add(hemi);
 
         const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-        sun.position.set(5, 10, 7.5);
+        sun.position.set(50, 100, 50);
+        sun.castShadow = true;
         this.scene.add(sun);
 
-        // Ground - GTA Concrete Style
-        const floorGeo = new THREE.PlaneGeometry(1000, 1000);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        this.scene.add(floor);
-
-        // Add some basic boxes as landmarks
-        for (let i = 0; i < 20; i++) {
-            const box = new THREE.Mesh(
-                new THREE.BoxGeometry(2, 2, 2),
-                new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff })
-            );
-            box.position.set(Math.random() * 50 - 25, 1, Math.random() * 50 - 25);
-            this.scene.add(box);
-        }
+        // Load the Crateria City Map
+        this.loader.load('crateria_city.glb', (gltf) => {
+            const map = gltf.scene;
+            // Ensure the map is centered and grounded
+            map.position.set(0, 0, 0); 
+            this.scene.add(map);
+            
+            // Basic collision flag for all meshes in the city
+            map.traverse(node => {
+                if (node.isMesh) {
+                    node.receiveShadow = true;
+                    node.castShadow = true;
+                }
+            });
+        });
     }
 }
