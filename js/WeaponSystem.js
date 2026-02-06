@@ -7,52 +7,58 @@ export class WeaponSystem {
         this.loader = new GLTFLoader();
         this.mixer = null;
         this.actions = {};
-        this.currentModel = null;
+        this.currentWeapon = null;
+        this.isBusy = false; // Prevents animation overlapping (e.g. firing while reloading)
     }
 
-    async loadWeapon(weaponPath) {
-        if (this.currentModel) this.camera.remove(this.currentModel);
+    async loadWeapon(name) {
+        if (this.currentWeapon) this.camera.remove(this.currentWeapon);
+        this.isBusy = false;
 
         return new Promise((resolve) => {
-            this.loader.load(weaponPath, (gltf) => {
-                this.currentModel = gltf.scene;
-                // Standard FPS positioning
-                this.currentModel.position.set(0.3, -0.4, -0.5);
-                this.currentModel.scale.set(0.1, 0.1, 0.1);
-                this.camera.add(this.currentModel);
+            this.loader.load(`assets/weapons/animated_${name}.glb`, (gltf) => {
+                this.currentWeapon = gltf.scene;
+                this.currentWeapon.position.set(0.35, -0.4, -0.5);
+                this.currentWeapon.scale.set(0.12, 0.12, 0.12);
+                this.camera.add(this.currentWeapon);
 
-                this.mixer = new THREE.AnimationMixer(this.currentModel);
+                this.mixer = new THREE.AnimationMixer(this.currentWeapon);
                 this.actions = {};
 
                 gltf.animations.forEach(clip => {
-                    const name = clip.name.toUpperCase();
-                    this.actions[name] = this.mixer.clipAction(clip);
+                    const action = this.mixer.clipAction(clip);
+                    this.actions[clip.name.toUpperCase()] = action;
                 });
 
-                this.play('UP'); 
+                this.play('UP', { force: true });
                 resolve();
             });
         });
     }
 
-    play(name, loop = false) {
+    play(name, options = {}) {
         const action = this.actions[name.toUpperCase()];
-        if (!action) return;
+        if (!action || (this.isBusy && !options.force)) return;
 
-        // Smoothly blend between animations
-        Object.values(this.actions).forEach(a => a.fadeOut(0.1));
+        // Reset and blend
+        Object.values(this.actions).forEach(a => a.fadeOut(0.15));
         
-        action.reset().fadeIn(0.1);
-        action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce);
+        action.reset().fadeIn(0.15).setLoop(THREE.LoopOnce).play();
         action.clampWhenFinished = true;
-        action.play();
 
-        if (!loop && name !== 'DOWN') {
-            const onFinished = () => {
-                this.mixer.removeEventListener('finished', onFinished);
-                if (this.actions['IDLE']) this.play('IDLE', true);
+        if (name !== 'IDLE') {
+            this.isBusy = true;
+            const onFinish = () => {
+                this.mixer.removeEventListener('finished', onFinish);
+                this.isBusy = false;
+                if (this.actions['IDLE']) this.play('IDLE', { force: true });
             };
-            this.mixer.addEventListener('finished', onFinished);
+            this.mixer.addEventListener('finished', onFinish);
+        }
+
+        // Special logic for Medkit/Healing
+        if (name === 'FIRE' && this.currentWeapon.name.includes('medkit')) {
+            window.dispatchEvent(new CustomEvent('healPlayer', { detail: { amount: 25 } }));
         }
     }
 
